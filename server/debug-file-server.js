@@ -41,7 +41,25 @@ function DebugFileServer(req, res) {
              fs.statSync(fullRequestedFilePath).isFile() &&
              fullRequestedFilePath.indexOf(fileServerBaseDir) === 0)
     {
-        if (multirewriter.isRewritable(requestedFile)) {
+        var mustDebug = true;
+        for (var i = 0; i < config.blackList.length; i++) {
+            if (requestedFile.indexOf(config.blackList[i]) >= 0) {
+                mustDebug = false;
+                break;
+            }
+        }
+
+        if (mustDebug && config.whiteList.length > 0) {
+            mustDebug = false;
+            for (i = 0; i < config.whiteList.length; i++) {
+                if (requestedFile.indexOf(config.whiteList[i]) >= 0) {
+                    mustDebug = true;
+                    break;
+                }
+            }
+        }
+        
+        if (mustDebug && multirewriter.isRewritable(requestedFile)) {
             var processedFile = multirewriter.getRewrittenContent(requestedFile);
             res.writeHead(200, {'Content-Type': 'application/javascript'});
             res.end(processedFile.file);

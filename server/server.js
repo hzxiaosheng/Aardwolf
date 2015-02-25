@@ -8,7 +8,7 @@
 var http = require('http');
 var path = require('path');
 var fs = require('fs');
-
+var URL = require('url');
 var config = require('../config/config.defaults.js');
 var util = require('./server-util.js');
 
@@ -19,18 +19,29 @@ function run() {
     });
 }
 
-var mobileDispatcher = new Dispatcher();
-var desktopDispatcher = new Dispatcher();
+var defaultMobileDispatcher = new Dispatcher();
+var defaultDesktopDispatcher = new Dispatcher();
+var dispatcherMap = {};
+function getClientIp(req) {
+    return req.headers['x-forwarded-for'] ||
+    req.connection.remoteAddress ||
+    req.socket.remoteAddress ||
+    req.connection.socket.remoteAddress;
+};
 
+function getClientUA(req){
+    var ua = req.headers['user-agent'];
+    return ua;
+}
+    
 function AardwolfServer(req, res) {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Headers', 'Origin, Content-Type');
     res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
-
+    
     var body = '';
-
     if (req.method == 'OPTIONS') {
         res.end();
         return;
@@ -44,10 +55,39 @@ function AardwolfServer(req, res) {
     }
 
     function processPostedData(data) {
-        switch (req.url) {
+        var mobileDispatcher, desktopDispatcher, targetId;
+        var reqInfo = URL.parse(req.url, true);
+        if(reqInfo.query && reqInfo.query.targetId && dispatcherMap[reqInfo.query.targetId]){
+            targetId = reqInfo.query.targetId;
+            if(reqInfo.pathname.indexOf('/desktop/') > -1 || reqInfo.pathname.indexOf('/ui/') > -1){
+                console.log('> desktop: ' + targetId);
+                console.log('pathname: ' + reqInfo.pathname);
+            }
+            mobileDispatcher = dispatcherMap[targetId].mobileDispatcher;
+            desktopDispatcher = dispatcherMap[targetId].desktopDispatcher;
+        }else if(reqInfo.pathname.indexOf('/mobile/') > -1){
+            var clientIp, clientUa;
+             clientIp = getClientIp(req);
+            clientUa = getClientUA(req);
+            targetId = clientIp + '-' + clientUa.replace(/\s/g, '-');
+            console.log('> mobile : ' + targetId);
+            console.log('pathname: ' + reqInfo.pathname);
+            if(!dispatcherMap[targetId] /*|| (Date.now() - dispatcherMap[targetId].lastAccessTime >= 1000 * 60 * 10)*/){
+                dispatcherMap[targetId] = {};
+                dispatcherMap[targetId].mobileDispatcher = new Dispatcher();
+                dispatcherMap[targetId].desktopDispatcher = new Dispatcher();
+            }
+            dispatcherMap[targetId].lastAccessTime = Date.now();
+            mobileDispatcher = dispatcherMap[targetId].mobileDispatcher;
+            desktopDispatcher = dispatcherMap[targetId].desktopDispatcher;
+        }else{
+            mobileDispatcher = defaultMobileDispatcher;
+            desktopDispatcher = defaultDesktopDispatcher;
+        }
+        switch (reqInfo.pathname) {
             case '/mobile/init':
                 mobileDispatcher.end();
-                mobileDispatcher = new Dispatcher();
+                mobileDispatcher = dispatcherMap[targetId].mobileDispatcher = new Dispatcher();
                 mobileDispatcher.setClient(res);
                 desktopDispatcher.clearMessages();
                 desktopDispatcher.addMessage(data);
@@ -83,14 +123,37 @@ function AardwolfServer(req, res) {
             case '/':
             case '/ui':
             case '/ui/':
-                res.writeHead(302, {'Location': '/ui/index.html'});
-                res.end();
+                var targetIds = Object.keys(dispatcherMap);
+                if(targetIds.length == 0){
+                    res.writeHead(302, {'Location': '/ui/index.html'});
+                    res.end();
+                }else{
+                    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+                    var htmls = [
+                        '<!DOCTYPE html>',
+                        '<html>',
+                            '<head>',
+                                '<title>targetIds</title>',
+                                '<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />',
+                            '</head>',
+                            '<body>',
+                            '<ol>',
+                            targetIds.map(function(targetId){
+                                return '<li><a href="/ui/index.html?targetId='+ targetId + '" target="_blank">' + targetId + '</a></li>' 
+                            }).join('\n'),
+                            '</ol>',
+                            '</body>',
+                        '</html>'
+                        ];
+                    res.end(htmls.join('\n'));
+                }
+                
                 break;
 
             default:
                 /* check if we need to serve a UI file */
-                if (req.url.indexOf('/ui/') === 0) {
-                    var requestedFile = req.url.substr(4);
+                if (reqInfo.pathname.indexOf('/ui/') === 0) {
+                    var requestedFile = reqInfo.pathname.substr(4);
                     var uiFilesDir = path.join(__dirname, '../ui/');
                     var fullRequestedFilePath = path.join(uiFilesDir, requestedFile);
 
@@ -102,8 +165,8 @@ function AardwolfServer(req, res) {
                 }
 
                 /* check if we need to serve a UI file */
-                if (req.url.indexOf('/files/data/') === 0) {
-                    var requestedFile = req.url.substr(12);
+                if (reqInfo.pathname.indexOf('/files/data/') === 0) {
+                    var requestedFile = reqInfo.pathname.substr(12);
                     var filesDir = path.normalize(config.fileServerBaseDir);
                     var fullRequestedFilePath = path.join(filesDir, requestedFile);
 
