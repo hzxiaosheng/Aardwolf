@@ -41,9 +41,21 @@ function tokenize(str, onToken) {
     function onTokenInternal(token, type) {
         /* A slash following an assigment operator, a semicolon or an 
            opening paren can be a regex literal delimiter. */
+
+        /*
+           @note by liuyongsheng 2015-02-14
+           function deserializeValue(){
+               try {
+                   return /^[\[\{]/.test(value) ? $.parseJSON(value) :value;
+               } catch (e) {
+                   return value;
+               }
+           }
+        */
         if (type === 'char' && ':=;({'.indexOf(token) > -1) {
             validRegexPos = true;
-        } else if (!((['comment', 'whitespace']).indexOf(type) > -1)) {
+        } else if (!((['comment', 'whitespace', 'newline']).indexOf(
+                type) > -1) && token != 'return') {
             validRegexPos = false;
         }
         

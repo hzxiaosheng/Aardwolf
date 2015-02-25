@@ -67,9 +67,20 @@ window.Aardwolf = new (function() {
             var req = new XMLHttpRequest();
             req.open('POST', serverUrl + '/mobile' + path, false);
             req.setRequestHeader('Content-Type', 'application/json');
-			if (path === '/breakpoint') {
-				req.timeout = 0;
-			}
+            if (path === '/breakpoint') {
+
+                /*
+                    @note by liuyongsheng: comment out the following line of code will avoid this error: 
+                    Failed to set the 'timeout' property on 'XMLHttpRequest':
+                    Timeouts cannot be set for synchronous requests made from a document.
+
+                    @note from MDN: https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest
+                    The number of milliseconds a request can take before automatically being terminated.
+                    A value of 0 (which is the default) means there is no timeout.
+                    Note: You may not use a timeout for synchronous requests with an owning window.
+                */
+                // req.timeout = 0;
+            }
             req.send(JSON.stringify(payload));
 			if (!req.responseText) {
 				// Timeout, retry

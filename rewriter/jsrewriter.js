@@ -28,11 +28,22 @@ function addDebugStatements(filePath, text) {
     var newlineEncountered = true;
     var functionEncountered = false;
     var wordAfterFunction = null;
-	var prevToken = null;
-	var openSwitch = false;
-	var openCase = false;
-
-	var invalidTokens = ['(', '[', ',', '=', ':', 'return', '|', '?'];
+    var prevToken = null;
+    var openSwitch = false;
+    var openCase = false;
+    /*
+        @note by liuyongsheng 2015-02-14
+        for (i in {
+                radio: true,
+                checkbox: true,
+                file: true,
+                password: true,
+                image: true
+            }) {
+            Expr.pseudos[i] = createInputPseudo(i);
+        }
+    */
+    var invalidTokens = ['(', '[', ',', '=', ':', 'return', '|', '?', 'in'];
 
 	var breakpoints = [];
 
@@ -157,11 +168,16 @@ function addDebugStatements(filePath, text) {
 		}
     });
 
-
-	return {
-		file: buildExceptionInterceptorStart('<toplevel>', filePath, 0) + out.join('') + exceptionInterceptorEnd,
-		breakpoints: breakpoints
-	};
+    /*
+        @note by liuyongsheng 2015-02-14
+        the last line of string produced by out.join('') might be a line of comment,
+        so here need a newline feed before exceptionInterceptorEnd
+    */
+    return {
+        file: buildExceptionInterceptorStart('<toplevel>', filePath, 0) + out.join(
+            '') + '\n' + exceptionInterceptorEnd,
+        breakpoints: breakpoints
+    };
 }
 
 
