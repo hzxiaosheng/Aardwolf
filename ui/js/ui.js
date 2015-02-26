@@ -15,7 +15,7 @@ var clearOnConnect = true;
 var lineNum = 0;
 var evalBig = false;
 
-var history = [];
+var historyArr = [];
 var currentHistoryPos = 0;
 var targetId = "";
 if (location.search.indexOf('targetId') > -1) {

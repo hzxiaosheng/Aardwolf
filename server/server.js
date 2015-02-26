@@ -124,10 +124,10 @@ function AardwolfServer(req, res) {
             case '/ui':
             case '/ui/':
                 var targetIds = Object.keys(dispatcherMap);
-                if(targetIds.length == 0){
-                    res.writeHead(302, {'Location': '/ui/index.html'});
-                    res.end();
-                }else{
+                //if(targetIds.length == 0){
+                //    res.writeHead(302, {'Location': '/ui/index.html'});
+                //    res.end();
+                //}else{
                     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
                     var htmls = [
                         '<!DOCTYPE html>',
@@ -137,16 +137,17 @@ function AardwolfServer(req, res) {
                                 '<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />',
                             '</head>',
                             '<body>',
-                            '<ol>',
-                            targetIds.map(function(targetId){
-                                return '<li><a href="/ui/index.html?targetId='+ targetId + '" target="_blank">' + targetId + '</a></li>' 
-                            }).join('\n'),
-                            '</ol>',
+                                '<h1>' + targetIds.length + ' remote targets connected with aardwolf server: </h1>',
+                                '<ol>',
+                                    targetIds.map(function(targetId){
+                                        return '<li><a href="/ui/index.html?targetId='+ targetId + '" target="_blank">' + targetId + '</a></li>' 
+                                    }).join('\n'),
+                                '</ol>',
                             '</body>',
                         '</html>'
                         ];
                     res.end(htmls.join('\n'));
-                }
+                //}
                 
                 break;
 
